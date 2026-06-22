@@ -1,0 +1,229 @@
+diff --git a/README.md b/README.md
+new file mode 100644
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,33 @@
++# Portfolio (Astro) template
++
++This repository contains a minimal Astro-based portfolio site for an illustrator.
++
++Quick start
++
++1. Add your images to public/images/original (create the directory).
++2. Edit src/data/images.json to list your images with title and date.
++3. Commit and push. GitHub Actions will build and deploy to GitHub Pages automatically.
++
++Notes
++
++- This is configured to use GitHub Actions and peaceiris/actions-gh-pages to publish the site.
++- Thumbnails are generated during the build using scripts/generate-thumbs.js and sharp.
++- If you don't want to include large images in the repo, add them manually in the GitHub UI or use an external host.
++
+diff --git a/package.json b/package.json
+new file mode 100644
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,18 @@
++{
++  "name": "portfolio-astro",
++  "version": "1.0.0",
++  "private": true,
++  "scripts": {
++    "dev": "astro dev",
++    "prebuild": "node scripts/generate-thumbs.js",
++    "build": "astro build",
++    "preview": "astro preview"
++  },
++  "dependencies": {
++    "astro": "^4.0.0",
++    "sharp": "^0.32.0"
++  }
++}
+diff --git a/scripts/generate-thumbs.js b/scripts/generate-thumbs.js
+new file mode 100644
+--- /dev/null
++++ b/scripts/generate-thumbs.js
+@@ -0,0 +1,44 @@
++const fs = require('fs');
++const path = require('path');
++const sharp = require('sharp');
++
++const srcDir = path.join(__dirname, '..', 'public', 'images', 'original');
++const outDir = path.join(__dirname, '..', 'public', 'images', 'thumbs');
++
++if (!fs.existsSync(srcDir)) {
++  console.error('Source directory not found:', srcDir);
++  process.exit(1);
++}
++if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
++
++(async () => {
++  const files = fs.readdirSync(srcDir).filter(f => /\.(jpe?g|png|webp)$/i.test(f));
++  for (const f of files) {
++    const inPath = path.join(srcDir, f);
++    const outPath = path.join(outDir, f.replace(/\.(jpg|jpeg)$/i, '.jpg'));
++    try {
++      await sharp(inPath)
++        .resize({ width: 800 })
++        .jpeg({ quality: 80 })
++        .toFile(outPath);
++      console.log('thumb:', f);
++    } catch (e) {
++      console.error('failed:', f, e.message || e);
++    }
++  }
++})();
+diff --git a/src/pages/index.astro b/src/pages/index.astro
+new file mode 100644
+--- /dev/null
++++ b/src/pages/index.astro
+@@ -0,0 +1,26 @@
++---
++import Gallery from '../components/Gallery.astro';
++---
++
++<html>
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width,initial-scale=1" />
++    <title>Portfolio</title>
++  </head>
++  <body style="font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;">
++    <main style="max-width:1100px;margin:36px auto;padding:0 18px;">
++      <Gallery/>
++    </main>
++  </body>
++</html>
+diff --git a/src/components/Gallery.astro b/src/components/Gallery.astro
+new file mode 100644
+--- /dev/null
++++ b/src/components/Gallery.astro
+@@ -0,0 +1,45 @@
++---
++import images from '../data/images.json';
++---
++
++<style>
++.gallery { display:grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
++.thumb { cursor:pointer; width:100%; height:150px; object-fit:cover; border-radius:6px; }
++.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
++.contact-btn { background:#111; color:#fff; padding:8px 12px; border-radius:6px; text-decoration:none; }
++</style>
++
++<div class="header">
++  <h2>Portfolio</h2>
++  <a class="contact-btn" href="mailto:you@example.com">依頼・お問い合わせ</a>
++</div>
++
++<div class="gallery">
++  {images.map(image => (
++    <img
++      class="thumb"
++      src={`/images/thumbs/${image.file}`}
++      alt={image.title}
++      data-full={`/images/original/${image.file}`}
++      data-title={image.title}
++      data-date={image.date}
++      loading="lazy"
++    />
++  ))}
++</div>
++
++<script type="module" src="/assets/lightbox.js"></script>
+diff --git a/src/data/images.json b/src/data/images.json
+new file mode 100644
+--- /dev/null
++++ b/src/data/images.json
+@@ -0,0 +1,7 @@
++[
++  {
++    "file": "sample01.jpg",
++    "title": "サンプル作品01",
++    "date": "2026-01-10"
++  }
++]
+diff --git a/public/assets/lightbox.js b/public/assets/lightbox.js
+new file mode 100644
+--- /dev/null
++++ b/public/assets/lightbox.js
+@@ -0,0 +1,46 @@
++// Very small lightbox script (vanilla JS)
++const createModal = () => {
++  const modal = document.createElement('div');
++  modal.style = `
++    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
++    background:rgba(0,0,0,0.8); z-index:9999; padding:20px;
++  `;
++  modal.innerHTML = `
++    <div style="max-width:90%; max-height:90%; position:relative; color:#fff;">
++      <img id="lb-img" style="max-width:100%; max-height:80vh; display:block; margin:0 auto; border-radius:6px;" />
++      <div id="lb-meta" style="margin-top:8px; text-align:center;"></div>
++      <button id="lb-close" style="position:absolute; right:0; top:-40px; background:none; border:none; color:#fff; font-size:28px; cursor:pointer;">&times;</button>
++    </div>
++  `;
++  document.body.appendChild(modal);
++  modal.querySelector('#lb-close').addEventListener('click', () => modal.remove());
++  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
++  return modal;
++};
++
++document.addEventListener('click', (e) => {
++  const t = e.target.closest && e.target.closest('img[data-full]');
++  if (!t) return;
++  const modal = createModal();
++  const img = modal.querySelector('#lb-img');
++  const meta = modal.querySelector('#lb-meta');
++  img.src = t.dataset.full;
++  meta.innerHTML = `<strong>${t.dataset.title || ''}</strong><div style="font-size:0.9em; opacity:0.9">${t.dataset.date || ''}</div>`;
++});
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+new file mode 100644
+--- /dev/null
++++ b/.github/workflows/deploy.yml
+@@ -0,0 +1,29 @@
++name: Build and Deploy to GitHub Pages
++on:
++  push:
++    branches: [ "main" ]
++
++jobs:
++  build-deploy:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: 20
++      - name: Install dependencies
++        run: npm ci
++      - name: Generate thumbnails (prebuild)
++        run: node scripts/generate-thumbs.js
++      - name: Build site
++        run: npm run build
++      - name: Deploy to gh-pages
++        uses: peaceiris/actions-gh-pages@v3
++        with:
++          github_token: ${{ secrets.GITHUB_TOKEN }}
++          publish_dir: ./dist
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,6 @@
++node_modules/
++.dist/
++.dist
++.DS_Store
++.env
++
+diff --git a/astro.config.mjs b/astro.config.mjs
+new file mode 100644
+--- /dev/null
++++ b/astro.config.mjs
+@@ -0,0 +1,5 @@
++import { defineConfig } from 'astro/config';
++
++export default defineConfig({
++  site: 'https://sui23g.github.io/portforio',
++});
