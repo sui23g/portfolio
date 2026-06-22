@@ -18,9 +18,9 @@ import images from '../data/images.json';
   {images.map(image => (
     <img
       class="thumb"
-      src={`/images/thumbs/${image.file}`}
+      src={`images/thumbs/${image.file}`}
       alt={image.title}
-      data-full={`/images/original/${image.file}`}
+      data-full={`images/original/${image.file}`}
       data-title={image.title}
       data-date={image.date}
       loading="lazy"
